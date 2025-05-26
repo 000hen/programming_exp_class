@@ -66,16 +66,19 @@ public:
 
             if (isspace(attrStr[ePos]))
                 while (ePos < attrStr.size() && isspace(attrStr[ePos])) ePos++;
-            
+
             pos = ePos;
-            
+
             if (attrStr[ePos] == '=') {
                 while (pos < attrStr.size() && attrStr[pos] != '"') pos++;
                 ePos = pos + 1;
-                while (ePos < attrStr.size() && (attrStr[ePos] != '"' || attrStr[ePos] == '"' && attrStr[ePos - 1] == '\\')) ePos++;
+                while (ePos < attrStr.size() &&
+                       (attrStr[ePos] != '"' ||
+                        attrStr[ePos] == '"' && attrStr[ePos - 1] == '\\'))
+                    ePos++;
             } else {
                 attributes[key] = "1";
-                pos = ++ePos;
+                pos = ePos++;
                 continue;
             }
 
