@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Linear</title>
+
+        <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/build/three.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/controls/OrbitControls.js"></script>
+
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                width: 100%;
+                min-height: 100vh;
+                display: grid;
+                place-items: center;
+            }
+
+            #app {
+                max-width: 1280px;
+                padding: 18px;
+                width: 90%;
+            }
+            
+            input {
+                padding: 5px;
+                margin: 5px;
+                width: 50px;
+                text-align: center;
+                border-radius: 8px;
+                border: 1px solid #ccc;
+            }
+
+            button {
+                padding: 5px 10px;
+                margin: 5px;
+                border-radius: 8px;
+                border: 1px solid #ccc;
+                background-color: #f0f0f0;
+                cursor: pointer;
+                font-size: 16px;
+            }
+
+            .result {
+                margin-top: 18px;
+                padding: 18px;
+                border: 1px solid #ccc;
+                border-radius: 8px;
+            }
+
+            .step {
+                margin-top: 18px;
+            }
+
+            .step:not(:last-child) {
+                border-bottom: 1px solid #ccc;
+                padding-bottom: 18px;
+            }
+
+            #canvas {
+                border: 1px solid #ccc;
+                display: grid;
+                place-items: center;
+                border-radius: 8px;
+                flex: 1 1 auto;
+                width: 100%;
+                padding: 18px;
+                height: fit-content;
+            }
+
+            @media screen and (min-width: 769px) {
+                .resBox {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 18px;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div id="app">
+            <div class="resBox">
+                <div style="flex: 1 1 auto;">
+                    <h1>兩方程三變數</h1>
+                    
+                    <div>
+                        <div>
+                            <input type="number" id="x1" placeholder="x1">x + <input type="number" id="y1" placeholder="y1">y + <input type="number" id="z1" placeholder="z1">z = <input type="number" id="c1" placeholder="c1"><br>
+                            <input type="number" id="x2" placeholder="x2">x + <input type="number" id="y2" placeholder="y2">y + <input type="number" id="z2" placeholder="z2">z = <input type="number" id="c2" placeholder="c2">
+                        </div>
+
+                        <button id="randBtn" style="margin-top: 18px;">隨機矩陣</button>
+                    </div>
+                    <div class="result" style="margin-top: 18px;">
+                        <h2>結果</h2>
+                        <div id="result"></div>
+                    </div>
+                </div>
+                <div id="canvas"></div>
+            </div>
+        </div>
+    </body>
+    <script>
+        window.addEventListener("load", () => {
+            const random = () => Math.floor(Math.random() * 10) + 1;
+            
+            const X1 = document.getElementById('x1');
+            const Y1 = document.getElementById('y1');
+            const Z1 = document.getElementById('z1');
+            const C1 = document.getElementById('c1');
+
+            const X2 = document.getElementById('x2');
+            const Y2 = document.getElementById('y2');
+            const Z2 = document.getElementById('z2');
+            const C2 = document.getElementById('c2');
+
+            const RESULT = document.getElementById('result');
+
+            const values = [X1, Y1, Z1, C1, X2, Y2, Z2, C2];
+
+            // constants for three.js
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(500, 500);
+            const canvasDiv = document.getElementById('canvas');
+            canvasDiv.appendChild(renderer.domElement);
+
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.screenSpacePanning = true;
+            controls.minDistance = 1;
+            controls.maxDistance = 50;
+
+            camera.position.set(5, 5, 5);
+            camera.lookAt(0, 0, 0);
+            scene.add(new THREE.AxesHelper(5));
+
+            function resetLatex() {
+                MathJax.startup.document.state(0);
+                MathJax.texReset();
+                MathJax.typeset();
+            }
+
+            function createAugmentedMatrix(obj) {
+                return `\\[
+                    \\left[
+                        \\begin{array}{ccc|c}
+                            ${obj.map((row, i) => row.map((col, j) => col).join(' & ')).join(' \\\\ ')}
+                        \\end{array}
+                    \\right]
+                \\]`;
+            }
+
+            function createSteps(obj) {
+                return `<p class="step">${createAugmentedMatrix(obj)}</p>`;
+            }
+
+            function randomize() {
+                X1.value = random();
+                Y1.value = random();
+                Z1.value = random();
+                C1.value = random();
+
+                X2.value = random();
+                Y2.value = random();
+                Z2.value = random();
+                C2.value = random();
+
+                solve();
+            }
+            document.getElementById('randBtn').addEventListener("click", randomize);
+
+            function solve() {
+                if (values.some(input => input.value === '')) {
+                    return;
+                }
+
+                let step = 0;
+                let stepDocs = ""; // html with steps and latex
+
+                let fun1 = [Number(X1.value), Number(Y1.value), Number(Z1.value), Number(C1.value)];
+                let fun2 = [Number(X2.value), Number(Y2.value), Number(Z2.value), Number(C2.value)];
+
+                stepDocs += createSteps([fun1, fun2]);
+
+                console.log(fun1, fun2);
+
+                if (fun1[0] === 0) {
+                    let t = [...fun1];
+                    fun1 = [...fun2];
+                    fun2 = [...t];
+
+                    stepDocs += `
+                        <h2>步驟 ${++step}</h2>
+                        <p>交換第一個和第二個方程式</p>
+
+                        ${createSteps([fun1, fun2])}
+                    `;
+                }
+
+                if (fun1[0] != 1) {
+                    const divisor = fun1[0];
+                    fun1[0] = 1;
+                    fun1[1] /= divisor;
+                    fun1[2] /= divisor;
+                    fun1[3] /= divisor;
+
+                    stepDocs += `
+                        <h2>步驟 ${++step}</h2>
+                        <p>將第一個方程式除以 ${divisor}</p>
+
+                        ${createSteps([fun1, fun2])}
+                    `
+                }
+
+                if (fun2[0] != 0) {
+                    const multiplier = fun2[0];
+                    fun2[0] = 0;
+                    fun2[1] -= fun1[1] * multiplier;
+                    fun2[2] -= fun1[2] * multiplier;
+                    fun2[3] -= fun1[3] * multiplier;
+
+                    stepDocs += `
+                        <h2>步驟 ${++step}</h2>
+                        <p>將第二個方程式減去第一個方程式乘以 ${multiplier}</p>
+
+                        ${createSteps([fun1, fun2])}
+                    `
+                }
+
+                if (fun2[1] != 1) {
+                    const divisor = fun2[1];
+                    fun2[1] = 1;
+                    fun2[2] /= divisor;
+                    fun2[3] /= divisor;
+
+                    stepDocs += `
+                        <h2>步驟 ${++step}</h2>
+                        <p>將第二個方程式除以 ${divisor}</p>
+
+                        ${createSteps([fun1, fun2])}
+                    `
+                }
+
+                if (fun1[1] != 0) {
+                    const multiplier = fun1[1];
+                    fun1[1] = 0;
+                    fun1[2] -= fun2[2] * multiplier;
+                    fun1[3] -= fun2[3] * multiplier;
+
+                    stepDocs += `
+                        <h2>步驟 ${++step}</h2>
+                        <p>將第一個方程式減去第二個方程式乘以 ${multiplier}</p>
+
+                        ${createSteps([fun1, fun2])}
+                    `
+                }
+
+                let isInf = [fun1, fun2].some(row => row.some((col) => isNaN(col) || !isFinite(col)));
+                let isZero = [fun1, fun2].some(row => row.some((col) => col === 0));
+
+                if (isInf) {
+                    stepDocs += `
+                        <h2>結果</h2>
+                        <p>系統無解。</p>
+                        <p><b>原因：</b> 當方程組的秩小於變數的數量時，系統無解。
+                        這意味著方程組提供的約束不足以確定每個變數的值。
+                        在幾何意義上，這表示兩個平面平行，不相交。</p>
+                    `;
+                }
+                if (isZero) {
+                    stepDocs += `
+                        <h2>結果</h2>
+                        <p>系統有唯一解。</p>
+                        <p><b>原因：</b> 當方程組的秩等於變數的數量時，系統有唯一解。
+                        這意味著方程組提供的約束足以確定每個變數的值。
+                        在幾何意義上，這表示兩個平面相交於一條直線。</p>
+                    `;
+                }
+
+                let particular = [0, 0, 0], dir1 = [0, 0, 0], dir2 = [0, 0, 0];
+                let freeVars = [];
+                let rref = [fun1, fun2];
+                let rank = rref.filter(row => row.slice(0, 3).some(x => Math.abs(x) > 0.01)).length;
+                let consistent = !rref.some(row => row.slice(0, 3).every(x => Math.abs(x) < 0.01) && Math.abs(row[3]) > 0.01);
+                let vars = 3;
+
+                if (rank === 2) {
+                    let eq1 = rref[0], eq2 = rref[1];
+                    if (eq1[0] === 1 && eq1[1] === 0) {
+                        freeVars = ['y'];
+                        particular[0] = eq1[3]; particular[2] = eq2[3];
+                        dir1[1] = 1; dir1[0] = -eq1[2]; dir1[2] = -eq2[2];
+                    } else if (eq1[0] === 1 && eq1[2] === 0) {
+                        freeVars = ['z'];
+                        particular[0] = eq1[3]; particular[1] = eq2[3];
+                        dir1[2] = 1; dir1[0] = -eq1[1]; dir1[1] = -eq2[1];
+                    } else if (eq1[1] === 1 && eq1[2] === 0) {
+                        freeVars = ['z'];
+                        particular[1] = eq1[3]; particular[0] = eq2[3];
+                        dir1[2] = 1; dir1[1] = -eq1[0]; dir1[0] = -eq2[0];
+                    }
+                    stepDocs += `
+                            <h2>結果</h2>
+                            <p>參數向量形式： </p>
+                            <p>\\[ \\begin{bmatrix} x \\\\ y \\\\ z \\end{bmatrix} = 
+                            \\begin{bmatrix} ${particular[0]} \\\\ ${particular[1]} \\\\ ${particular[2]} \\end{bmatrix} + 
+                            s \\begin{bmatrix} ${dir1[0]} \\\\ ${dir1[1]} \\\\ ${dir1[2]} \\end{bmatrix} \\]
+                            其中 \( s \) 為自由參數 (${freeVars[0]} 為自由變數)。</p>
+                        `;
+                } else if (rank === 1) {
+                    let eq1 = rref[0];
+                    if (eq1[0] === 1) {
+                        freeVars = ['y', 'z'];
+                        particular[0] = eq1[3];
+                        dir1[0] = -eq1[1]; dir1[1] = 1; dir1[2] = 0;
+                        dir2[0] = -eq1[2]; dir2[1] = 0; dir2[2] = 1;
+                    } else if (eq1[1] === 1) {
+                        freeVars = ['x', 'z'];
+                        particular[1] = eq1[3];
+                        dir1[0] = 1; dir1[1] = -eq1[0]; dir1[2] = 0;
+                        dir2[0] = 0; dir2[1] = -eq1[2]; dir2[2] = 1;
+                    } else if (eq1[2] === 1) {
+                        freeVars = ['x', 'y'];
+                        particular[2] = eq1[3];
+                        dir1[0] = 1; dir1[1] = 0; dir1[2] = -eq1[0];
+                        dir2[0] = 0; dir2[1] = 1; dir2[2] = -eq1[1];
+                    }
+                    stepDocs += `
+                            <h2>結果</h2>
+                            <p>參數向量形式:</p>
+                            <p>\\[ \\begin{bmatrix} x \\\\ y \\\\ z \\end{bmatrix} = 
+                            \\begin{bmatrix} ${particular[0]} \\\\ ${particular[1]} \\\\ ${particular[2]} \\end{bmatrix} + 
+                            s \\begin{bmatrix} ${dir1[0]} \\\\ ${dir1[1]} \\\\ ${dir1[2]} \\end{bmatrix} + 
+                            t \\begin{bmatrix} ${dir2[0]} \\\\ ${dir2[1]} \\\\ ${dir2[2]} \\end{bmatrix} \\]
+                            其中 \( s \) 和 \( t \) 為自由參數 (${freeVars[0]} 和 ${freeVars[1]} 為自由變數)。</p>
+                        `;
+                }
+
+                RESULT.innerHTML = stepDocs;
+                resetLatex();
+
+                scene.children = [scene.children[0]];
+                const materialSolution = new THREE.MeshBasicMaterial({ color: 0x800080, side: THREE.DoubleSide });
+                const materialPart = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                const materialDir1 = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+                const materialDir2 = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+
+                if (rank === 2) {
+                    const pointsSolution = [
+                        new THREE.Vector3(particular[0] - dir1[0] * 5, particular[1] - dir1[1] * 5, particular[2] - dir1[2] * 5),
+                        new THREE.Vector3(particular[0] + dir1[0] * 5, particular[1] + dir1[1] * 5, particular[2] + dir1[2] * 5)
+                    ];
+                    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pointsSolution), new THREE.LineBasicMaterial({ color: 0x800080 })));
+                } else if (rank === 1) {
+                    const geometry = new THREE.PlaneGeometry(10, 10);
+                    const plane = new THREE.Mesh(geometry, materialSolution);
+                    const normal = new THREE.Vector3(dir1[1] * dir2[2] - dir1[2] * dir2[1],
+                        dir1[2] * dir2[0] - dir1[0] * dir2[2],
+                        dir1[0] * dir2[1] - dir1[1] * dir2[0]);
+                    plane.lookAt(normal);
+                    plane.position.set(particular[0], particular[1], particular[2]);
+                    scene.add(plane);
+                }
+
+                const arrowPart = new THREE.ArrowHelper(
+                    new THREE.Vector3(...particular).normalize(),
+                    new THREE.Vector3(0, 0, 0),
+                    particular.reduce((a, b) => a + b * b, 0) ** 0.5 || 1,
+                    0xff0000, 0.5, 0.3
+                );
+                arrowPart.line.material.linewidth = 3;
+                scene.add(arrowPart);
+
+                const dir1Length = dir1.reduce((a, b) => a + b * b, 0) ** 0.5 || 1;
+                const arrowDir1 = new THREE.ArrowHelper(
+                    new THREE.Vector3(...dir1).normalize(),
+                    new THREE.Vector3(...particular),
+                    dir1Length * 2,
+                    0x00ff00, 0.5, 0.3
+                );
+                arrowDir1.line.material.linewidth = 3;
+                scene.add(arrowDir1);
+
+                if (rank === 1) {
+                    const dir2Length = dir2.reduce((a, b) => a + b * b, 0) ** 0.5 || 1;
+                    const arrowDir2 = new THREE.ArrowHelper(
+                        new THREE.Vector3(...dir2).normalize(),
+                        new THREE.Vector3(...particular),
+                        dir2Length * 2,
+                        0x0000ff, 0.5, 0.3
+                    );
+                    arrowDir2.line.material.linewidth = 3;
+                    scene.add(arrowDir2);
+                }
+
+                renderer.render(scene, camera);
+            }
+
+            values.forEach(input => input.addEventListener("input", solve));
+            renderer.render(scene, camera);
+
+            function animate() {
+                requestAnimationFrame(animate);
+                controls.update();
+                renderer.render(scene, camera);
+            }
+            animate();
+        })
+    </script>
+</html>
