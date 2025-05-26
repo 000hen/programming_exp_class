@@ -1,3 +1,7 @@
 *.exe
 tempCodeRunnerFile.*
 test*
+*.data
+*.out
+*.s
+output*

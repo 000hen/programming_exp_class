@@ -1,4 +1,5 @@
 #include <cmath>
+#include <iostream>
 
 class Point {
 public:
@@ -21,6 +22,7 @@ private:
     double x;
     double y;
 };
+
 class Segment {
 public:
     Segment() : pointA(Point()), pointB(Point()) {}
