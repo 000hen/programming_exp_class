@@ -13,7 +13,7 @@ Book::Book(const std::string& _isbn, const std::string& _title,
       publicationYear(_publicationYear),
       isBorrowed(false) {};
 
-std::string Book::getISBN() const { return this->isbn; }
+std::string Book::getISBN() const { return isbn; }
 std::string Book::getTitle() const { return title; }
 std::string Book::getAuthor() const { return author; }
 std::string Book::getPublisher() const { return publisher; }
