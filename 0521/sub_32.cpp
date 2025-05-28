@@ -62,6 +62,7 @@ public:
                    (!isspace(attrStr[ePos]) && attrStr[ePos] != '='))
                 ePos++;
 
+            if (ePos == pos) break;
             std::string key = attrStr.substr(pos, ePos - pos);
 
             if (isspace(attrStr[ePos]))
@@ -101,8 +102,8 @@ public:
 
     std::string operator[](const std::string& key) {
         auto it = attributes.find(key);
-        if (it != attributes.end()) return it->second;
-        return "";
+        if (it == attributes.end()) return "";
+        return it->second;
     }
 
 private:
